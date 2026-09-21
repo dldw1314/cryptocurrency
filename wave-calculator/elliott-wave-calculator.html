@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>波浪结构计算器</title>
+  <meta name="description" content="计算五浪长度、回撤比例、第五浪候选目标，以及ABC调整目标。">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b1220'/%3E%3Cpath d='M8 43 19 29l9 8 12-20 16 10' fill='none' stroke='%2338d9c5' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #070b13;
+      --panel: #0d1422;
+      --panel-2: #111b2c;
+      --line: #233047;
+      --text: #eef4ff;
+      --muted: #8fa0b8;
+      --cyan: #38d9c5;
+      --blue: #62a8ff;
+      --amber: #ffc857;
+      --red: #ff6b7a;
+      --green: #65e6a4;
+      --radius: 18px;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-width: 320px; background: radial-gradient(circle at 85% -10%, #14243d 0, transparent 32rem), var(--bg); color: var(--text); font: 16px/1.55 Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+    button, input, select { font: inherit; }
+    button { color: inherit; }
+    .shell { max-width: 1240px; margin: auto; padding: 28px 22px 48px; }
+    header { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin-bottom: 22px; }
+    h1 { margin: 0; font-size: clamp(1.55rem, 3vw, 2.35rem); letter-spacing: -.04em; font-weight: 700; }
+    .lede { margin: 5px 0 0; color: var(--muted); }
+    .tabs { display: inline-flex; padding: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
+    .tab { border: 0; background: transparent; padding: 9px 17px; border-radius: 9px; cursor: pointer; color: var(--muted); }
+    .tab[aria-selected="true"] { background: #1b2940; color: var(--text); }
+    .workspace { display: grid; grid-template-columns: minmax(310px, .82fr) minmax(460px, 1.45fr); gap: 18px; align-items: start; }
+    .panel { background: color-mix(in srgb, var(--panel) 94%, transparent); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+    .panel-head { padding: 18px 20px 12px; border-bottom: 1px solid var(--line); }
+    h2 { margin: 0; font-size: 1.02rem; font-weight: 650; }
+    .hint { margin: 4px 0 0; color: var(--muted); font-size: .84rem; }
+    .form { padding: 18px 20px 20px; }
+    .direction { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+    .direction button { border: 1px solid var(--line); background: var(--panel-2); border-radius: 10px; padding: 9px; cursor: pointer; }
+    .direction button.active { border-color: var(--cyan); color: var(--cyan); background: rgba(56,217,197,.08); }
+    .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    label { display: grid; gap: 6px; color: var(--muted); font-size: .84rem; }
+    input { width: 100%; min-width: 0; border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; color: var(--text); background: #08101d; outline: none; }
+    input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(98,168,255,.12); }
+    .optional { color: #62728b; font-size: .72rem; }
+    .actions { display: flex; justify-content: space-between; gap: 10px; margin-top: 17px; }
+    .btn { border: 1px solid var(--line); background: var(--panel-2); border-radius: 10px; padding: 9px 12px; cursor: pointer; }
+    .btn:hover { border-color: #405270; }
+    .result-panel { padding: 20px; }
+    .chart-wrap { min-height: 300px; border-bottom: 1px solid var(--line); padding-bottom: 18px; }
+    svg { display: block; width: 100%; height: 300px; overflow: visible; }
+    .chart-caption { display: flex; justify-content: space-between; gap: 16px; color: var(--muted); font-size: .78rem; margin-top: 5px; }
+    .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 18px; }
+    .card { min-width: 0; padding: 14px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 13px; }
+    .card .k { color: var(--muted); font-size: .76rem; }
+    .card .v { margin-top: 4px; font-size: 1.22rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .card .f { color: var(--muted); font-size: .73rem; margin-top: 4px; overflow-wrap: anywhere; }
+    .table-wrap { overflow-x: auto; margin-top: 16px; }
+    table { width: 100%; border-collapse: collapse; font-size: .87rem; }
+    th, td { padding: 10px 8px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; }
+    th { color: var(--muted); font-weight: 500; }
+    td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .checks { display: grid; gap: 8px; margin-top: 16px; }
+    .check { display: flex; gap: 9px; align-items: flex-start; padding: 10px 12px; border-radius: 10px; background: rgba(101,230,164,.06); color: #b8f6d5; font-size: .84rem; }
+    .check.warn { background: rgba(255,200,87,.07); color: #ffe0a0; }
+    .check.bad { background: rgba(255,107,122,.08); color: #ffc1c8; }
+    .dot { width: 8px; height: 8px; flex: 0 0 auto; border-radius: 50%; background: currentColor; margin-top: 6px; }
+    .empty { color: var(--muted); padding: 26px 0; text-align: center; }
+    footer { margin-top: 17px; color: var(--muted); font-size: .78rem; text-align: center; }
+    [hidden] { display: none !important; }
+    @media (max-width: 850px) {
+      header { align-items: flex-start; flex-direction: column; }
+      .workspace { grid-template-columns: 1fr; }
+      .tabs { width: 100%; }
+      .tab { flex: 1; }
+    }
+    @media (max-width: 520px) {
+      .shell { padding: 18px 12px 34px; }
+      .fields, .cards { grid-template-columns: 1fr; }
+      .chart-caption { flex-direction: column; gap: 2px; }
+      svg { height: 260px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div>
+        <h1>波浪结构计算器</h1>
+        <p class="lede">输入实际拐点，计算浪长、回撤比例与候选目标。</p>
+      </div>
+      <div class="tabs" role="tablist" aria-label="计算模式">
+        <button class="tab" role="tab" id="tab-five" aria-controls="five-pane" aria-selected="true">五浪</button>
+        <button class="tab" role="tab" id="tab-abc" aria-controls="abc-pane" aria-selected="false">ABC三浪</button>
+      </div>
+    </header>
+
+    <section id="five-pane" role="tabpanel" aria-labelledby="tab-five">
+      <div class="workspace">
+        <div class="panel">
+          <div class="panel-head"><h2>五浪锚点</h2><p class="hint">②浪和⑤浪实际终点可留空。</p></div>
+          <div class="form">
+            <div class="direction" data-direction-group="five">
+              <button type="button" class="active" data-direction="up">上涨推动</button>
+              <button type="button" data-direction="down">下跌推动</button>
+            </div>
+            <div class="fields">
+              <label>起点 0<input id="f0" inputmode="decimal" type="number" step="any" value="2369"></label>
+              <label>①浪终点<input id="f1" inputmode="decimal" type="number" step="any" value="2483"></label>
+              <label>②浪终点 <span class="optional">可选</span><input id="f2" inputmode="decimal" type="number" step="any" placeholder="例如 2437"></label>
+              <label>③浪终点<input id="f3" inputmode="decimal" type="number" step="any" value="2668"></label>
+              <label>④浪终点<input id="f4" inputmode="decimal" type="number" step="any" value="2567"></label>
+              <label>⑤浪实际终点 <span class="optional">可选</span><input id="f5" inputmode="decimal" type="number" step="any" placeholder="用于核验"></label>
+            </div>
+            <div class="actions"><button class="btn" type="button" id="five-example">载入BTC示例</button><button class="btn" type="button" id="five-clear">清空</button></div>
+          </div>
+        </div>
+        <div class="panel result-panel">
+          <div class="chart-wrap"><svg id="five-chart" role="img" aria-label="五浪结构示意图"></svg><div class="chart-caption"><span>实线为已输入锚点</span><span>虚线为候选⑤浪目标</span></div></div>
+          <div id="five-results" aria-live="polite"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="abc-pane" role="tabpanel" aria-labelledby="tab-abc" hidden>
+      <div class="workspace">
+        <div class="panel">
+          <div class="panel-head"><h2>ABC锚点</h2><p class="hint">先输入推动浪起点与顶部；A、B出现后再算C。</p></div>
+          <div class="form">
+            <div class="direction" data-direction-group="abc">
+              <button type="button" class="active" data-direction="up">上涨后回调</button>
+              <button type="button" data-direction="down">下跌后反弹</button>
+            </div>
+            <div class="fields">
+              <label>推动浪起点<input id="a0" inputmode="decimal" type="number" step="any" value="1515"></label>
+              <label>推动浪终点<input id="at" inputmode="decimal" type="number" step="any" value="2825"></label>
+              <label>A浪终点 <span class="optional">可选</span><input id="aa" inputmode="decimal" type="number" step="any" placeholder="实际A低点"></label>
+              <label>B浪终点 <span class="optional">可选</span><input id="ab" inputmode="decimal" type="number" step="any" placeholder="实际B高点"></label>
+              <label>C浪实际终点 <span class="optional">可选</span><input id="ac" inputmode="decimal" type="number" step="any" placeholder="用于核验"></label>
+            </div>
+            <div class="actions"><button class="btn" type="button" id="abc-example">载入示例</button><button class="btn" type="button" id="abc-clear">清空</button></div>
+          </div>
+        </div>
+        <div class="panel result-panel">
+          <div class="chart-wrap"><svg id="abc-chart" role="img" aria-label="ABC调整结构示意图"></svg><div class="chart-caption"><span>回撤位针对整轮推动浪</span><span>C浪目标需A、B都已形成</span></div></div>
+          <div id="abc-results" aria-live="polite"></div>
+        </div>
+      </div>
+    </section>
+    <footer>斐波那契比例用于生成候选区域，不代表价格必达。波浪编号应结合实际结构确认。</footer>
+  </main>
+
+  <script>
+    (() => {
+      const $ = id => document.getElementById(id);
+      const state = { fiveDirection: 'up', abcDirection: 'up' };
+      const stored = localStorage.getItem('wave-calculator-v1');
+      if (stored) { try { Object.assign(state, JSON.parse(stored)); } catch {} }
+      const ids = ['f0','f1','f2','f3','f4','f5','a0','at','aa','ab','ac'];
+      const savedInputs = state.inputs || {};
+      ids.forEach(id => { if (savedInputs[id] !== undefined) $(id).value = savedInputs[id]; });
+
+      const n = id => { const v = $(id).value.trim(); return v === '' ? null : Number(v); };
+      const valid = (...xs) => xs.every(Number.isFinite);
+      const fmt = value => Number.isFinite(value) ? new Intl.NumberFormat('zh-CN',{maximumFractionDigits:2}).format(value) : '—';
+      const pct = value => Number.isFinite(value) ? `${value.toFixed(2)}%` : '—';
+      const dirSign = mode => state[`${mode}Direction`] === 'up' ? 1 : -1;
+      const travel = (from,to,sign) => (to-from)*sign;
+      const project = (base,length,sign) => base + length*sign;
+
+      function save() {
+        state.inputs = Object.fromEntries(ids.map(id => [id,$(id).value]));
+        localStorage.setItem('wave-calculator-v1', JSON.stringify(state));
+      }
+
+      function setDirection(mode, direction) {
+        state[`${mode}Direction`] = direction;
+        document.querySelectorAll(`[data-direction-group="${mode}"] button`).forEach(b => b.classList.toggle('active', b.dataset.direction === direction));
+        save(); renderAll();
+      }
+
+      document.querySelectorAll('[data-direction-group] button').forEach(b => b.addEventListener('click', () => setDirection(b.parentElement.dataset.directionGroup,b.dataset.direction)));
+      ids.forEach(id => $(id).addEventListener('input', () => { save(); renderAll(); }));
+
+      document.querySelectorAll('.tab').forEach(tab => tab.addEventListener('click', () => {
+        const isFive = tab.id === 'tab-five';
+        $('tab-five').setAttribute('aria-selected', String(isFive));
+        $('tab-abc').setAttribute('aria-selected', String(!isFive));
+        $('five-pane').hidden = !isFive; $('abc-pane').hidden = isFive;
+      }));
+
+      function cards(items) { return `<div class="cards">${items.map(x=>`<div class="card"><div class="k">${x[0]}</div><div class="v">${x[1]}</div><div class="f">${x[2]}</div></div>`).join('')}</div>`; }
+      function checks(items) { return `<div class="checks">${items.map(x=>`<div class="check ${x[0]}"><span class="dot"></span><span>${x[1]}</span></div>`).join('')}</div>`; }
+
+      function renderFive() {
+        const s=dirSign('five'), p=[n('f0'),n('f1'),n('f2'),n('f3'),n('f4'),n('f5')];
+        const w1=valid(p[0],p[1])?travel(p[0],p[1],s):null;
+        const w2=valid(p[1],p[2])?travel(p[2],p[1],s):null;
+        const w3=valid(p[2],p[3])?travel(p[2],p[3],s):null;
+        const w4=valid(p[3],p[4])?travel(p[4],p[3],s):null;
+        const w5=valid(p[4],p[5])?travel(p[4],p[5],s):null;
+        const r2=valid(w1,w2)&&w1>0?w2/w1*100:null, r3=valid(w1,w3)&&w1>0?w3/w1:null, r4=valid(w3,w4)&&w3>0?w4/w3*100:null;
+        const tEq=valid(p[4],w1)?project(p[4],w1,s):null;
+        const net03=valid(p[0],p[3])?travel(p[0],p[3],s):null;
+        const tNet=valid(p[4],net03)?project(p[4],net03*.618,s):null;
+        const tExt=valid(p[4],w1)?project(p[4],w1*1.618,s):null;
+        const rows=[['①浪',w1,'基准长度'],['②浪',w2,valid(r2)?`回撤①浪 ${pct(r2)}`:'需要②浪终点'],['③浪',w3,valid(r3)?`为①浪 ${r3.toFixed(3)}倍`:'需要②、③浪终点'],['④浪',w4,valid(r4)?`回撤③浪 ${pct(r4)}`:'需要③、④浪终点'],['⑤浪实际',w5,valid(w1,w5)?`为①浪 ${(w5/w1).toFixed(3)}倍`:'可选核验']];
+        let html=cards([['⑤＝①',fmt(tEq),'④浪终点 ± ①浪长度'],['⑤＝0→③净距×0.618',fmt(tNet),'从④浪终点投射'],['⑤＝1.618×①',fmt(tExt),'延伸参考']]);
+        html+=`<div class="table-wrap"><table><thead><tr><th>波浪</th><th class="num">价格长度</th><th>比例</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r[0]}</td><td class="num">${fmt(r[1])}</td><td>${r[2]}</td></tr>`).join('')}</tbody></table></div>`;
+        const ck=[];
+        if(valid(p[0],p[1])) ck.push([w1>0?'':'bad',w1>0?'①浪方向有效':'①浪方向与所选推动方向不符']);
+        if(valid(p[0],p[2])) { const ok=travel(p[0],p[2],s)>=0; ck.push([ok?'':'bad',ok?'②浪未越过①浪起点':'②浪越过①浪起点，推动浪计数失效']); }
+        if(valid(p[1],p[4])) { const ok=s>0?p[4]>p[1]:p[4]<p[1]; ck.push([ok?'':'bad',ok?'④浪未进入①浪价格区域':'④浪进入①浪价格区域，标准推动浪计数失效']); }
+        if(valid(w1,w3,w5)) { const ok=!(w3<w1&&w3<w5); ck.push([ok?'':'bad',ok?'③浪不是①③⑤中最短的一浪':'③浪成为最短浪，计数失效']); }
+        else ck.push(['warn','⑤浪尚未完成，不能最终核验“③浪非最短浪”规则']);
+        html+=checks(ck); $('five-results').innerHTML=html;
+        drawWave('five-chart', p, [tEq,tNet,tExt], ['①','②','③','④','⑤'], s);
+        return {wave1:w1,wave2Retracement:r2,wave3:w3,wave3Multiple:r3,wave4Retracement:r4,targets:{wave1Equality:tEq,netZeroToThree0618:tNet,wave1Extension1618:tExt}};
+      }
+
+      function renderABC() {
+        const s=dirSign('abc'), p0=n('a0'), top=n('at'), a=n('aa'), b=n('ab'), c=n('ac');
+        const impulse=valid(p0,top)?travel(p0,top,s):null;
+        const retraceLevels=[.236,.382,.5,.618,.786].map(r=>[r,valid(top,impulse)?project(top,-impulse*r,s):null]);
+        const aLen=valid(top,a)?travel(a,top,s):null;
+        const bLen=valid(a,b)?travel(a,b,s):null;
+        const bRet=valid(aLen,bLen)&&aLen>0?bLen/aLen*100:null;
+        const targets=[.618,1,1.618].map(r=>[r,valid(b,aLen)?project(b,-aLen*r,s):null]);
+        let html=cards([['推动浪长度',fmt(impulse),'终点－起点，按方向计'],['A浪长度',fmt(aLen),'需输入实际A终点'],['B浪反弹A',pct(bRet),'需输入实际A、B终点']]);
+        html+=`<div class="table-wrap"><table><thead><tr><th>整轮回撤</th><th class="num">候选价格</th><th>C浪关系</th><th class="num">候选价格</th></tr></thead><tbody>${retraceLevels.map((x,i)=>`<tr><td>${(x[0]*100).toFixed(1)}%</td><td class="num">${fmt(x[1])}</td><td>${targets[i<3?i:2]?`C＝${targets[i<3?i:2][0]}×A`:''}</td><td class="num">${i<3?fmt(targets[i][1]):''}</td></tr>`).join('')}</tbody></table></div>`;
+        const ck=[];
+        if(valid(impulse)) ck.push([impulse>0?'':'bad',impulse>0?'推动浪方向有效':'推动浪方向与所选模式不符']);
+        if(valid(top,b)) { const ok=s>0?b<=top:b>=top; ck.push([ok?'':'warn',ok?'B浪未越过A浪起点，符合锯齿形候选':'B浪越过原顶部，不符合普通锯齿形；可检查平台形']); }
+        if(!valid(a,b)) ck.push(['warn','A、B尚未同时形成，C浪目标暂不计算']);
+        else ck.push(['','C浪常见参考为0.618、1或1.618倍A浪，均非必达']);
+        html+=checks(ck); $('abc-results').innerHTML=html;
+        drawWave('abc-chart',[p0,top,a,b,c],targets.map(x=>x[1]),['顶部','A','B','C'],s,true);
+        return {impulse,retracements:Object.fromEntries(retraceLevels.map(x=>[x[0],x[1]])),waveA:aLen,waveBRetracement:bRet,waveCTargets:Object.fromEntries(targets.map(x=>[x[0],x[1]]))};
+      }
+
+      function drawWave(id, points, targets, labels, sign, abc=false) {
+        const svg=$(id), w=760, h=300, pad={l:58,r:42,t:25,b:34}; svg.setAttribute('viewBox',`0 0 ${w} ${h}`); svg.innerHTML='';
+        const actual=points.filter(Number.isFinite), vals=actual.concat(targets.filter(Number.isFinite));
+        if(vals.length<2){svg.innerHTML='<text x="380" y="150" text-anchor="middle" fill="#8fa0b8">输入至少两个锚点后显示图形</text>';return;}
+        let min=Math.min(...vals),max=Math.max(...vals),span=Math.max(max-min,1); min-=span*.12;max+=span*.12;
+        const y=v=>pad.t+(max-v)/(max-min)*(h-pad.t-pad.b); const count=Math.max(points.length,5); const x=i=>pad.l+i*(w-pad.l-pad.r)/(count+1);
+        for(let i=0;i<5;i++){const yy=pad.t+i*(h-pad.t-pad.b)/4;svg.insertAdjacentHTML('beforeend',`<line x1="${pad.l}" y1="${yy}" x2="${w-pad.r}" y2="${yy}" stroke="#233047"/><text x="${pad.l-8}" y="${yy+4}" text-anchor="end" fill="#8fa0b8" font-size="11">${fmt(max-i*(max-min)/4)}</text>`);}
+        let d=''; points.forEach((v,i)=>{if(!Number.isFinite(v))return;d+=(d?' L':'M')+` ${x(i)} ${y(v)}`;});
+        svg.insertAdjacentHTML('beforeend',`<path d="${d}" fill="none" stroke="#38d9c5" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`);
+        points.forEach((v,i)=>{if(!Number.isFinite(v))return;const lab=abc?(i===0?'起点':labels[i-1]||''):i===0?'0':labels[i-1]||'';svg.insertAdjacentHTML('beforeend',`<circle cx="${x(i)}" cy="${y(v)}" r="5" fill="#38d9c5" stroke="#070b13" stroke-width="2"/><text x="${x(i)}" y="${y(v)+(i%2? -12:20)}" text-anchor="middle" fill="#eef4ff" font-size="12">${lab} ${fmt(v)}</text>`);});
+        const lastIndex=points.findLastIndex(Number.isFinite), bx=x(lastIndex), by=y(points[lastIndex]);
+        targets.filter(Number.isFinite).forEach((t,i)=>{const tx=Math.min(w-pad.r,x(lastIndex+1)+i*22);svg.insertAdjacentHTML('beforeend',`<line x1="${bx}" y1="${by}" x2="${tx}" y2="${y(t)}" stroke="#ffc857" stroke-width="2" stroke-dasharray="6 5"/><circle cx="${tx}" cy="${y(t)}" r="4" fill="#ffc857"/><text x="${tx-2}" y="${y(t)-9}" text-anchor="end" fill="#ffc857" font-size="11">${fmt(t)}</text>`);});
+      }
+
+      $('five-example').addEventListener('click',()=>{const v={f0:57827,f1:66922,f2:62275,f3:82300,f4:74968,f5:''};Object.entries(v).forEach(([k,x])=>$(k).value=x);setDirection('five','up');});
+      $('five-clear').addEventListener('click',()=>{['f0','f1','f2','f3','f4','f5'].forEach(id=>$(id).value='');save();renderAll();});
+      $('abc-example').addEventListener('click',()=>{const v={a0:1515,at:2825,aa:2500,ab:2701,ac:''};Object.entries(v).forEach(([k,x])=>$(k).value=x);setDirection('abc','up');});
+      $('abc-clear').addEventListener('click',()=>{['a0','at','aa','ab','ac'].forEach(id=>$(id).value='');save();renderAll();});
+      function renderAll(){renderFive();renderABC();}
+
+      function registerWebMCP() {
+        const ctx=document.modelContext; if(!ctx?.registerTool)return;
+        try { ctx.registerTool({name:'calculate_wave_scenario',title:'计算波浪情景',description:'设置五浪或ABC锚点，更新页面并返回长度、回撤和候选目标。',inputSchema:{type:'object',properties:{mode:{type:'string',enum:['five','abc']},direction:{type:'string',enum:['up','down']},values:{type:'array',items:{type:['number','null']},minItems:5,maxItems:6}},required:['mode','direction','values'],additionalProperties:false},annotations:{readOnlyHint:false,untrustedContentHint:false},execute(input){if(!input||!['five','abc'].includes(input.mode)||!['up','down'].includes(input.direction)||!Array.isArray(input.values))throw new Error('参数无效');const names=input.mode==='five'?['f0','f1','f2','f3','f4','f5']:['a0','at','aa','ab','ac'];if(input.values.length<names.length-1)throw new Error('锚点数量不足');names.forEach((id,i)=>{$(id).value=input.values[i]??''});setDirection(input.mode,input.direction);return input.mode==='five'?renderFive():renderABC();}}); } catch(e) { console.warn('WebMCP unavailable',e); }
+      }
+      document.querySelectorAll('[data-direction-group="five"] button').forEach(b=>b.classList.toggle('active',b.dataset.direction===state.fiveDirection));
+      document.querySelectorAll('[data-direction-group="abc"] button').forEach(b=>b.classList.toggle('active',b.dataset.direction===state.abcDirection));
+      renderAll(); registerWebMCP();
+    })();
+  </script>
+</body>
+</html>
